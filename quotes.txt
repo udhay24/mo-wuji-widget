@@ -1,60 +1,120 @@
-The heavens gave me no spiritual roots. So I tore the heavens open and took my Dao by force.|On being born with nothing
-They laughed when I fell. They went quiet when I stood. They knelt when I walked toward them.|On the climb
-I was a cripple once. Remember that, when you see me standing at the peak.|On where it began
-If the sky blocks my path, I will break the sky. If the earth buries me, I will split the earth.|On obstacles
-Every bone they broke, I rebuilt stronger. Every door they shut, I turned to dust.|On rejection
-I do not need the heavens to approve of me. I only need to keep walking.|On permission
-Fate wrote my ending. I burned the book and wrote my own.|On destiny
-A thousand times I failed. A thousand times I stood up. The thousand-and-first, the world remembered my name.|On persistence
-I am not a genius. I am the man who refuses to stop. That is far more terrifying.|On talent
-Today they call me trash. Tomorrow they will call me master. I will answer to neither — only to my Dao.|On names
-My meridians were shattered. My will never was.|On what can't be broken
-When there is no road, I become the road.|On forging a path
-I walked through death so many times, death began to step aside.|On fear
-The weak pray for miracles. I refine them, one pill at a time, with my own hands.|On alchemy
-Kneel to no heaven. Bow to no fate. Stand — even if you stand alone.|On pride
-I came into this world with empty hands. I will leave it having shaken the stars.|On legacy
-Let them mock. Mockery is just the sound people make before they are left behind.|On critics
-The day I stop growing is the day I truly die. Until then, I cultivate.|On never settling
-No master carried me. No clan protected me. Every step was mine — and so is the summit.|On self-reliance
-Pain is just the heavens checking if you are serious. Show them you are.|On suffering
-I do not walk the path of immortals. I walk the path of a mortal who refused to be ordinary.|On the Mortal Dao
-Between me and the peak stand ten thousand enemies. Good. I will need the practice.|On adversity
-A seed under a mountain does not ask permission to grow. It simply breaks the mountain.|On quiet strength
-They gave me a death sentence and called it fate. I called it a starting line.|On beginnings
-Even if the whole world stands against me, I will cut a path through it — for the ones I protect.|On loyalty
-Hesitate, and the chance is gone forever. Strike, and let the heavens catch up.|On decisiveness
-I do not fear the strong. I fear the version of me that never tried.|On regret
-One more breath. One more step. One more strike. That is how mountains are climbed.|On the grind
-Talent is a gift from heaven. Will is a weapon you forge yourself. I chose the weapon.|On will
-The universe is vast and I am small. So what? Small things that never stop can still reach the end.|On scale
-I owe kindness tenfold and grudges in full. And I always pay my debts.|On honor
-Others had a hundred paths and wasted them. I had none, so I made one — and never wasted a step.|On scarcity
-I bled for every realm I broke through. That is why no one can take them from me.|On earned power
-The sky is not the limit. The sky is just the first thing I'll break.|On ambition
-When I was nothing, I trained. When I was something, I trained harder. That is the whole secret.|On discipline
-Do not wait to be chosen. Choose yourself, and make the heavens regret overlooking you.|On being overlooked
-A true cultivator is not measured by how high he flies, but by how many times he rose after falling.|On resilience
-Silence. Cultivate. Let your results speak so loudly they shake the realm.|On humility
-I will not die here. Not today. Not to them. Not while my Dao is unfinished.|On refusing to quit
-Every wall I meet is just the next step, wearing a disguise.|On perspective
-I have stood at the edge of death more times than I can count. Each time, I came back sharper.|On near-death
-The heavens tested me with nothing. I answered with everything.|On trials
-If I must walk alone through ten thousand years of darkness, I will — and I will bring the dawn with me.|On solitude
-A blade dulls when it stops cutting. A man dulls when he stops striving. Stay sharp.|On complacency
-They built cages of rules for mortals. I was born a mortal. I was not born to stay caged.|On freedom
-Remember this feeling — the humiliation, the pain, the fire. One day it will be the fuel that sets the heavens ablaze.|On humiliation
-My path has no ancestors to follow. Good. Then I will be the ancestor.|On pioneering
-You can take my cultivation. You can take my life. You will never take the fact that I never bowed.|On dignity
-Grind in the dark so long that when you finally step into the light, the world has to shield its eyes.|On patience
-I am the variable the heavens did not calculate.|On being underestimated
-Kill my body, and my will remains. Kill my will — you can't. That is my true foundation.|On the core
-Every pill I refined, every scar I earned, every night I didn't sleep — they were all bricks in my Dao.|On compounding effort
-The moment you decide you will never give up, the battle is already half won.|On commitment
-They said the peak was for geniuses. So I became the first fool to stand on it.|On proving them wrong
-I do not chase power. I chase the man I am meant to become. Power just follows behind.|On purpose
-Let the storm come. I have walked through worse with less.|On storms
-No one is coming to save you. Rise — and become the one who saves others.|On responsibility
-Not the strongest. Not the most gifted. Simply the one who would not stop. Remember my name.|On identity
-Every ending I was handed, I turned into a beginning.|On rebirth
-Close your eyes. Breathe. Remember why you started. Now open them — and go conquer it.|On returning to the path
+The heavens gave me no spiritual roots. So I tore the heavens open and took my Dao by force.|On being born with nothing|god-like
+They laughed when I fell. They went quiet when I stood. They knelt when I walked toward them.|On the climb|battle
+I was a cripple once. Remember that, when you see me standing at the peak.|On where it began|god-like
+If the sky blocks my path, I will break the sky. If the earth buries me, I will split the earth.|On obstacles|battle
+Every bone they broke, I rebuilt stronger. Every door they shut, I turned to dust.|On rejection|battle
+I do not need the heavens to approve of me. I only need to keep walking.|On permission|calm
+Fate wrote my ending. I burned the book and wrote my own.|On destiny|battle
+A thousand times I failed. A thousand times I stood up. The thousand-and-first, the world remembered my name.|On persistence|calm
+I am not a genius. I am the man who refuses to stop. That is far more terrifying.|On talent|battle
+Today they call me trash. Tomorrow they will call me master. I will answer to neither — only to my Dao.|On names|calm
+My meridians were shattered. My will never was.|On what can't be broken|battle
+When there is no road, I become the road.|On forging a path|calm
+I walked through death so many times, death began to step aside.|On fear|battle
+The weak pray for miracles. I refine them, one pill at a time, with my own hands.|On alchemy|calm
+Kneel to no heaven. Bow to no fate. Stand — even if you stand alone.|On pride|god-like
+I came into this world with empty hands. I will leave it having shaken the stars.|On legacy|god-like
+Let them mock. Mockery is just the sound people make before they are left behind.|On critics|battle
+The day I stop growing is the day I truly die. Until then, I cultivate.|On never settling|calm
+No master carried me. No clan protected me. Every step was mine — and so is the summit.|On self-reliance|god-like
+Pain is just the heavens checking if you are serious. Show them you are.|On suffering|battle
+I do not walk the path of immortals. I walk the path of a mortal who refused to be ordinary.|On the Mortal Dao|calm
+Between me and the peak stand ten thousand enemies. Good. I will need the practice.|On adversity|battle
+A seed under a mountain does not ask permission to grow. It simply breaks the mountain.|On quiet strength|calm
+They gave me a death sentence and called it fate. I called it a starting line.|On beginnings|battle
+Even if the whole world stands against me, I will cut a path through it — for the ones I protect.|On loyalty|battle
+Hesitate, and the chance is gone forever. Strike, and let the heavens catch up.|On decisiveness|battle
+I do not fear the strong. I fear the version of me that never tried.|On regret|calm
+One more breath. One more step. One more strike. That is how mountains are climbed.|On the grind|calm
+Talent is a gift from heaven. Will is a weapon you forge yourself. I chose the weapon.|On will|battle
+The universe is vast and I am small. So what? Small things that never stop can still reach the end.|On scale|calm
+I owe kindness tenfold and grudges in full. And I always pay my debts.|On honor|battle
+Others had a hundred paths and wasted them. I had none, so I made one — and never wasted a step.|On scarcity|calm
+I bled for every realm I broke through. That is why no one can take them from me.|On earned power|battle
+The sky is not the limit. The sky is just the first thing I'll break.|On ambition|god-like
+When I was nothing, I trained. When I was something, I trained harder. That is the whole secret.|On discipline|calm
+Do not wait to be chosen. Choose yourself, and make the heavens regret overlooking you.|On being overlooked|god-like
+A true cultivator is not measured by how high he flies, but by how many times he rose after falling.|On resilience|calm
+Silence. Cultivate. Let your results speak so loudly they shake the realm.|On humility|calm
+I will not die here. Not today. Not to them. Not while my Dao is unfinished.|On refusing to quit|battle
+Every wall I meet is just the next step, wearing a disguise.|On perspective|calm
+I have stood at the edge of death more times than I can count. Each time, I came back sharper.|On near-death|battle
+The heavens tested me with nothing. I answered with everything.|On trials|battle
+If I must walk alone through ten thousand years of darkness, I will — and I will bring the dawn with me.|On solitude|calm
+A blade dulls when it stops cutting. A man dulls when he stops striving. Stay sharp.|On complacency|battle
+They built cages of rules for mortals. I was born a mortal. I was not born to stay caged.|On freedom|god-like
+Remember this feeling — the humiliation, the pain, the fire. One day it will be the fuel that sets the heavens ablaze.|On humiliation|battle
+My path has no ancestors to follow. Good. Then I will be the ancestor.|On pioneering|god-like
+You can take my cultivation. You can take my life. You will never take the fact that I never bowed.|On dignity|battle
+Grind in the dark so long that when you finally step into the light, the world has to shield its eyes.|On patience|calm
+I am the variable the heavens did not calculate.|On being underestimated|god-like
+Kill my body, and my will remains. Kill my will — you can't. That is my true foundation.|On the core|battle
+Every pill I refined, every scar I earned, every night I didn't sleep — they were all bricks in my Dao.|On compounding effort|calm
+The moment you decide you will never give up, the battle is already half won.|On commitment|calm
+They said the peak was for geniuses. So I became the first fool to stand on it.|On proving them wrong|god-like
+I do not chase power. I chase the man I am meant to become. Power just follows behind.|On purpose|calm
+Let the storm come. I have walked through worse with less.|On storms|battle
+No one is coming to save you. Rise — and become the one who saves others.|On responsibility|god-like
+Not the strongest. Not the most gifted. Simply the one who would not stop. Remember my name.|On identity|god-like
+Every ending I was handed, I turned into a beginning.|On rebirth|calm
+Close your eyes. Breathe. Remember why you started. Now open them — and go conquer it.|On returning to the path|calm
+Every dawn, the heavens ask the same question: will you cultivate today? Answer with your actions.|On mornings|calm
+A tired body is not a broken will. Rest if you must — but return to the path.|On exhaustion|calm
+One breath of focus is worth a thousand hours of wandering thought.|On focus|calm
+The pill furnace does not care how you feel. It only cares if the fire stays lit.|On consistency|calm
+I have failed more refinements than most will ever attempt. That is why my pills never fail now.|On failure|calm
+The weak wait for the right moment. The strong make every moment the right one.|On timing|battle
+The mountain does not get shorter while you complain about its height.|On excuses|calm
+In the silence of closed-door cultivation, empires are built.|On deep work|calm
+The heart that is calm cannot be shaken by ten thousand storms.|On calm|calm
+I did not come this far to bow at the last gate.|On the final step|battle
+A realm is not reached in a day. But it is reached by days.|On progress|calm
+Wounds close. Scars remain. Both make me stronger.|On scars|battle
+When the whole world says impossible, that is when I start.|On the impossible|battle
+Let the heavens send their tribulation. I have been preparing for it my whole life.|On tribulation|battle
+A man who has nothing to lose has nothing to fear. A man who has everything to protect becomes unstoppable.|On protecting others|battle
+Even the vastest sea began as a single drop of rain.|On small beginnings|calm
+The Dao does not reward the talented. It rewards those who stay.|On staying|calm
+Do not compare your first step to another man's thousandth.|On comparison|calm
+My enemies gave me pressure. Pressure gave me diamonds.|On pressure|battle
+Fear is a mist. Walk through it, and it was never a wall.|On courage|battle
+The moment I stop doubting, the heavens begin to tremble.|On self-belief|god-like
+A true cultivator forges his heart before his sword.|On character|calm
+Cultivation is not a sprint across the sky. It is a walk that never stops.|On endurance|calm
+They took my home, my name, my strength. They could not take my next step.|On loss|battle
+The stars do not hurry, yet they never fail to rise.|On steadiness|calm
+Do the work no one sees. The heavens see everything.|On unseen effort|calm
+I am not here to be liked. I am here to become.|On becoming|god-like
+A burning heart can melt even the coldest fate.|On passion|battle
+If you must fall, fall forward.|On falling|battle
+Mastery is just a thousand ordinary days stacked into one extraordinary life.|On mastery|calm
+The greater the pressure of the heavens, the faster I break through.|On breakthroughs|god-like
+Hold your Dao heart steady, and no illusion can fool you.|On clarity|calm
+Every master was once a disaster who refused to give up.|On humble starts|calm
+I don't need luck. I have repetition.|On luck|calm
+Pain fades. The breakthrough stays.|On temporary pain|battle
+Chase the person you will be in a thousand years, not the comfort of today.|On delayed reward|calm
+When the gate is locked, become the key.|On problem solving|calm
+The world bends around a will that refuses to bend.|On unyielding will|battle
+The lightning strikes the tallest tree. So be it — I will grow taller.|On standing out|battle
+Stillness is not weakness. It is power waiting for its moment.|On stillness|calm
+I am not afraid of dying. I am afraid of living small.|On living fully|god-like
+Polish your foundation until even the heavens cannot crack it.|On foundations|calm
+The path is long. Good. That means there is room to grow.|On the long road|calm
+Strength is built in the hours you wanted to quit.|On hard hours|battle
+Let your cultivation be quiet and your breakthrough be thunder.|On quiet work|calm
+Treat every setback as a pill: bitter, but it makes you stronger.|On setbacks|calm
+My Dao is not a destination. It is who I am becoming every day.|On the journey|calm
+Don't wish it were easier. Wish you were stronger — then make it true.|On difficulty|battle
+The ones who mocked me are now the ones who tell my story.|On reversal|god-like
+A single spark of will can burn down a mountain of doubt.|On doubt|battle
+To stand above the heavens, first stand above yourself.|On self-mastery|god-like
+Every sunrise is a new chance to surpass yesterday's self.|On new days|calm
+The sword is sharpened on the stone of resistance.|On resistance|battle
+Speak less. Cultivate more. Let your realm speak for you.|On results|calm
+I will rise until there is no more sky — and then I will make more.|On limitless growth|god-like
+Sometimes the greatest battle is simply showing up again.|On showing up|calm
+Your heart is the furnace. Your trials are the fire. You are the pill.|On transformation|god-like
+The heavens remember those who never stopped climbing.|On remembrance|god-like
+One more chapter. One more refinement. One more day. This is how legends are written.|On one more|calm
+Today, cultivate as if the heavens are watching. Tomorrow, they will be kneeling.|On today|god-like

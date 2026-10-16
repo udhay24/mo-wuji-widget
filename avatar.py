@@ -2,6 +2,8 @@ import math
 import random
 import tkinter as tk
 from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageTk
 
@@ -10,6 +12,7 @@ SS = 3                          # supersample factor for smooth edges
 K = AV_W * SS / 100             # scene units (0..100 wide, 0..115 tall) -> supersampled pixels
 W, H = AV_W * SS, AV_H * SS
 BLUR = SS * AV_W / 200
+ART_DIR = Path(__file__).resolve().parent / "art"   # optional painted scenes: art/<scene-name>.jpg
 
 
 def u(*pts: float) -> list[float]:
@@ -34,6 +37,7 @@ class Scene:
     wind: float = 1.0
     lift: float = 0.0
     rate: float = 0.3
+    times: tuple[str, ...] = ()         # parts of the day this scene suits
 
 
 SCENES = [
@@ -94,6 +98,44 @@ SCENES = [
           wind=0.6, rate=0.35),
 
 ]
+
+SCENE_TIMES = {
+    "dawn meditation": ("dawn",), "moonlit bamboo": ("night",), "wanderer in the mist": ("dawn", "day"),
+    "blossom meditation": ("dawn", "dusk"), "snow peak stillness": ("day",), "lotus lake": ("dusk", "night"),
+    "facing the heavens": ("night",), "bamboo duel": ("dawn", "day"), "ten thousand swords": ("dusk", "night"),
+    "blood moon": ("night",), "burning battlefield": ("day", "dusk"), "facing the beast": ("dusk", "night"),
+    "lightning tribulation": ("day", "night"), "ascension": ("dawn", "day"), "lord of the stars": ("night",),
+    "heaven's gate": ("day", "dusk"),
+}
+for _scene in SCENES:
+    _scene.times = SCENE_TIMES[_scene.name]
+
+
+def time_of_day(hour: int) -> str:
+    if 5 <= hour < 9:
+        return "dawn"
+    if 9 <= hour < 17:
+        return "day"
+    if 17 <= hour < 20:
+        return "dusk"
+    return "night"
+
+
+def art_path(sc: Scene) -> Path:
+    return ART_DIR / (sc.name.replace("'", "").replace(" ", "-") + ".jpg")
+
+
+def load_art(sc: Scene) -> Image.Image | None:
+    """Painted scene scaled to cover the frame, plus a small margin for slow panning."""
+    path = art_path(sc)
+    if not path.exists():
+        return None
+    src = Image.open(path).convert("RGBA")
+    aw, ah = int(W * 1.06), int(H * 1.06)
+    scale = max(aw / src.width, ah / src.height)
+    src = src.resize((round(src.width * scale), round(src.height * scale)), Image.LANCZOS)
+    left, top = (src.width - aw) // 2, (src.height - ah) // 2
+    return src.crop((left, top, left + aw, top + ah))
 
 
 def lerp(a: tuple, b: tuple, f: float) -> tuple[int, ...]:
@@ -273,18 +315,17 @@ class Avatar:
         self.photo = ImageTk.PhotoImage(Image.new("RGBA", (AV_W, AV_H), (0, 0, 0, 255)))
         self.label_img.config(image=self.photo)
         self.cache: dict[str, Image.Image] = {}
-        self.order = SCENES[:]
-        random.shuffle(self.order)
-        self.index = 0
         self.t = 0.0
-        self.set_scene(self.order[0])
+        self.sc: Scene | None = None
+        self.show()
 
     def set_scene(self, sc: Scene) -> None:
         self.sc = sc
-        if sc.name not in self.cache:
+        self.art = load_art(sc)
+        if self.art is None and sc.name not in self.cache:
             self.cache[sc.name] = build_background(sc)
         self.rays = None
-        if "rays" in sc.fx:
+        if "rays" in sc.fx and self.art is None:
             # 18 rays repeat every 20 degrees, so 20 pre-rotated frames loop seamlessly
             big = build_rays(sc.fx_color, 50, 50)
             rs, cx, cy = big.size[0], int(50 * K), int(52 * K)
@@ -293,9 +334,13 @@ class Avatar:
         self.parts: list[Particle] = []
         self.next_bolt, self.bolt_until, self.bolt = self.t + 1.5, 0.0, []
 
-    def next_pose(self) -> None:
-        self.index = (self.index + 1) % len(self.order)
-        self.set_scene(self.order[self.index])
+    def show(self, mood: str | None = None, seated: bool = False) -> None:
+        """Switches to a scene of the given mood that suits the time of day."""
+        pool = [s for s in SCENES if (mood is None or s.mood == mood) and (not seated or s.pose == "seated")] or SCENES
+        now = time_of_day(datetime.now().hour)
+        pool = [s for s in pool if now in s.times] or pool
+        pool = [s for s in pool if s is not self.sc] or pool
+        self.set_scene(random.choice(pool))
 
     # ---------- figure ----------
     def ribbon(self, d: ImageDraw.ImageDraw, x0: float, y0: float, length: float, width: float,
@@ -482,12 +527,10 @@ class Avatar:
         self.parts = [p for p in self.parts if p.life > 0 and -25 < p.x < 125 and -15 < p.y < 120]
 
     # ---------- frame ----------
-    def tick(self) -> None:
-        self.t += self.dt
+    def draw_scene(self, breath: float) -> tuple[Image.Image, tuple[float, float]]:
+        """Procedural scene: cached background, drawn figure and the effects placed around it."""
         sc = self.sc
-        breath = math.sin(self.t * 2 * math.pi / 5)
         frame = self.cache[sc.name].copy()
-
         if self.rays is not None:
             frame.alpha_composite(self.rays[int(self.t * 4) % 20])
 
@@ -530,6 +573,23 @@ class Avatar:
             for ex, ey in ((16, 24), (28, 25)):
                 d.ellipse(u(ex - 3.5, ey - 1.6, ex + 3.5, ey + 1.6), fill=sc.fx_color + (int(90 * glow),))
                 d.polygon(u(ex - 2.4, ey, ex + 2.4, ey - 0.9, ex + 1.8, ey + 0.6), fill=(255, 220, 120, int(255 * glow)))
+        return frame, strike
+
+    def tick(self) -> None:
+        self.t += self.dt
+        sc = self.sc
+        breath = math.sin(self.t * 2 * math.pi / 5)
+        if self.art is not None:
+            # a slow drift across the painting keeps it alive without redrawing the figure
+            mx, my = self.art.width - W, self.art.height - H
+            ox = int(mx / 2 + mx / 2 * math.sin(self.t * 0.05))
+            oy = int(my / 2 + my / 2 * math.sin(self.t * 0.037))
+            frame = self.art.crop((ox, oy, ox + W, oy + H))
+            strike = (random.uniform(30, 80), 97)
+        else:
+            frame, strike = self.draw_scene(breath)
+        d = ImageDraw.Draw(frame)
+
         if "twinkle" in sc.fx:
             rnd = random.Random(int(self.t * 2))
             for _ in range(5):

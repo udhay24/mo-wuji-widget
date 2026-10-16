@@ -80,6 +80,9 @@ class CGRect(ctypes.Structure):
 def make_glass(win: int, width: int, height: int) -> None:
     """Puts a native frosted-glass view behind Tk's transparent content, like macOS desktop widgets."""
     msg(win, b"setOpaque:", 0, argtypes=(ctypes.c_bool,))
+    # a non-opaque window lets clicks fall through its transparent pixels, and the glass counts as
+    # transparent; setting this explicitly makes the whole card clickable
+    msg(win, b"setIgnoresMouseEvents:", 0, argtypes=(ctypes.c_bool,))
     msg(win, b"setBackgroundColor:", msg(objc.objc_getClass(b"NSColor"), b"clearColor"), argtypes=(ctypes.c_void_p,))
     content = msg(win, b"contentView")
     glass = msg(msg(objc.objc_getClass(b"NSVisualEffectView"), b"alloc"), b"initWithFrame:",
@@ -164,6 +167,7 @@ class QuoteWidget:
         self.state.setdefault("generated", [])
         self.state.setdefault("chronicles", {})
         self.fresh: dict | None = None      # a generated quote waiting to be shown
+        self.ai_turn = False                # AI and built-in quotes take turns
         self.fetching = False
         self.chronicling: str | None = None
 
@@ -327,7 +331,8 @@ class QuoteWidget:
         self.root.geometry(f"{WIDTH}x{h}+{self.root.winfo_x()}+{max(0, y)}")
 
     def next_quote(self) -> None:
-        if self.fresh:
+        self.ai_turn = not self.ai_turn
+        if self.ai_turn and self.fresh:
             quote, theme, mood = self.fresh["quote"], self.fresh["theme"], self.fresh["mood"]
             self.fresh = None
             self.state["generated"] = (self.state["generated"] + [quote])[-40:]

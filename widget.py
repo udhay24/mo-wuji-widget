@@ -9,6 +9,7 @@ import tkinter as tk
 from collections import Counter
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Callable
 
 from avatar import Avatar, time_of_day
 from voice import Voice
@@ -17,7 +18,7 @@ BASE = Path(__file__).resolve().parent
 REFRESH_MS = 30 * 60 * 1000
 TICK_MS = 180
 WIDTH = 470
-TITLE_FONT, QUOTE_FONT = "Cinzel", "Cormorant Garamond"
+TITLE_FONT, QUOTE_FONT = "Lora", "Lora"
 BG, FG, GOLD, DIM = "systemTransparent", "#f4f0e8", "#e8c47c", "#b4aabe"
 BAR_DIM = "#6f6680"
 FIELD_BG = "#262330"
@@ -158,7 +159,9 @@ class QuoteWidget:
                         if line.count("|") == 2]
         self.current = ""
         self.dragging = False
-        self.links: set[tk.Widget] = set()
+        self.actions: dict[tk.Widget, Callable[[], None]] = {}   # clickable widgets and what they do
+        self.watching = False
+        self.was_down = False
         self.timer_job: str | None = None
         self.state = load_state()
         self.state.setdefault("goal", 4)
@@ -192,15 +195,15 @@ class QuoteWidget:
         top = tk.Frame(right, bg=BG)
         top.pack(fill="x")
         tk.Label(top, text="MO WUJI", bg=BG, fg=GOLD, font=(TITLE_FONT, 10, "bold")).pack(side="left")
-        self.link(top, "×", self.root.destroy, fg=DIM, font=(QUOTE_FONT, 18, "italic")).pack(side="right")
-        self.progress = self.link(top, "", self.open_cultivation, fg=DIM, font=(QUOTE_FONT, 13, "italic"))
+        self.link(top, "×", self.root.destroy, fg=DIM, font=(QUOTE_FONT, 16, "italic")).pack(side="right")
+        self.progress = self.link(top, "", self.open_cultivation, fg=DIM, font=(QUOTE_FONT, 12, "italic"))
         self.progress.pack(side="right", padx=(0, 10))
 
         self.views = {name: tk.Frame(right, bg=BG) for name in ("quote", "setup", "session")}
         self.build_quote_view(self.views["quote"])
         self.build_setup_view(self.views["setup"])
         self.build_session_view(self.views["session"])
-        self.bind_drag(self.root)
+        self.root.bind_all("<Enter>", self.watch_pointer, add="+")
 
         self.next_quote()
         self.refresh_progress()
@@ -227,21 +230,14 @@ class QuoteWidget:
     # ---------- building ----------
     def link(self, parent: tk.Widget, text: str, command, fg: str = GOLD, font: tuple | None = None) -> tk.Label:
         label = tk.Label(parent, text=text, bg=BG, fg=fg, font=font or (TITLE_FONT, 9, "bold"), cursor="hand2")
-        label.bind("<Button-1>", lambda e: command())
-        self.links.add(label)
+        self.actions[label] = command
         return label
 
-    def text(self, parent: tk.Widget, text: str = "", fg: str = DIM, size: int = 13, **kw) -> tk.Label:
+    def text(self, parent: tk.Widget, text: str = "", fg: str = DIM, size: int = 12, **kw) -> tk.Label:
         return tk.Label(parent, text=text, bg=BG, fg=fg, font=(QUOTE_FONT, size, "italic"), **kw)
 
-    def bind_drag(self, widget: tk.Widget) -> None:
-        if widget not in self.links and widget is not self.root:
-            widget.bind("<ButtonPress-1>", self.start_drag)
-        for child in widget.winfo_children():
-            self.bind_drag(child)
-
     def build_quote_view(self, v: tk.Frame) -> None:
-        self.quote = tk.Label(v, bg=BG, fg=FG, font=(QUOTE_FONT, 17, "italic"),
+        self.quote = tk.Label(v, bg=BG, fg=FG, font=(QUOTE_FONT, 15, "italic"),
                               wraplength=WIDTH - 200, justify="left", anchor="w")
         self.quote.pack(fill="x", pady=(6, 6))
         bottom = tk.Frame(v, bg=BG)
@@ -252,7 +248,7 @@ class QuoteWidget:
         self.link(bottom, "CULTIVATE", self.open_cultivation, fg=DIM).pack(side="right", padx=(0, 14))
 
     def build_setup_view(self, v: tk.Frame) -> None:
-        self.text(v, "Closed-door cultivation", fg=FG, size=17, anchor="w").pack(fill="x", pady=(6, 4))
+        self.text(v, "Closed-door cultivation", fg=FG, size=15, anchor="w").pack(fill="x", pady=(6, 4))
 
         row = tk.Frame(v, bg=BG)
         row.pack(fill="x", pady=1)
@@ -276,11 +272,10 @@ class QuoteWidget:
         row.pack(fill="x", pady=(4, 1))
         self.text(row, "Intention", width=9, anchor="w").pack(side="left")
         self.intention = tk.Entry(row, bg=FIELD_BG, fg=FG, insertbackground=FG, relief="flat", highlightthickness=1,
-                                  highlightbackground=BAR_DIM, highlightcolor=GOLD, font=(QUOTE_FONT, 14, "italic"))
+                                  highlightbackground=BAR_DIM, highlightcolor=GOLD, font=(QUOTE_FONT, 13, "italic"))
         self.intention.pack(side="left", fill="x", expand=True, ipady=2)
-        self.intention.bind("<Button-1>", self.focus_intention)
         self.intention.bind("<Return>", lambda e: self.begin_session())
-        self.links.add(self.intention)
+        self.actions[self.intention] = self.focus_intention
 
         self.chart = tk.Canvas(v, width=WIDTH - 200, height=50, bg=BG, highlightthickness=0)
         self.chart.pack(anchor="w", pady=(8, 2))
@@ -296,7 +291,7 @@ class QuoteWidget:
     def build_session_view(self, v: tk.Frame) -> None:
         self.session_title = self.text(v, anchor="w")
         self.session_title.pack(fill="x", pady=(6, 0))
-        self.timer = tk.Label(v, bg=BG, fg=FG, font=(TITLE_FONT, 30, "bold"), anchor="w")
+        self.timer = tk.Label(v, bg=BG, fg=FG, font=(TITLE_FONT, 28, "bold"), anchor="w")
         self.timer.pack(fill="x")
         self.bar = tk.Canvas(v, width=WIDTH - 200, height=4, bg=BG, highlightthickness=0)
         self.bar.pack(anchor="w", pady=(2, 6))
@@ -406,7 +401,7 @@ class QuoteWidget:
                 c.create_rectangle(x0, base - (base - top) * n / peak, x0 + col * 0.44, base,
                                    fill=GOLD if n >= goal else BAR_DIM, outline="")
             c.create_text(x0 + col * 0.22, base + 9, text=day.strftime("%a")[0], fill=FG if day == date.today() else DIM,
-                          font=(QUOTE_FONT, 11, "italic"))
+                          font=(QUOTE_FONT, 10, "italic"))
 
         self.show_chronicle()
         self.stats.config(text=f"Today {s['today']} of {goal} · {s['today_minutes']} min · "
@@ -451,7 +446,7 @@ class QuoteWidget:
 
         self.voice.chronicle("\n".join(record), store)
 
-    def focus_intention(self, e: tk.Event) -> None:
+    def focus_intention(self) -> None:
         # desktop-level windows only take keyboard input once the app is active and the window is key
         msg(ns_app(), b"activateIgnoringOtherApps:", 1, argtypes=(ctypes.c_bool,))
         msg(self.win, b"makeKeyWindow")
@@ -562,13 +557,36 @@ class QuoteWidget:
         else:
             self.root.after(1000, self.animate)
 
-    # Mouse-move events get dropped for desktop-level windows, so track the pointer directly.
-    def start_drag(self, e: tk.Event) -> None:
-        if self.dragging:
-            return
-        self.dragging = True
-        self.dx, self.dy = e.x_root - self.root.winfo_x(), e.y_root - self.root.winfo_y()
-        self.follow()
+    # ---------- mouse ----------
+    # macOS drops most clicks on this card while another app is active, but hover events still arrive.
+    # So while the pointer is over the card, the widget reads the mouse button itself and acts on presses.
+    def watch_pointer(self, e: tk.Event | None = None) -> None:
+        if not self.watching:
+            self.watching = True
+            self.was_down = mouse_down()
+            self.poll_pointer()
+
+    def poll_pointer(self) -> None:
+        px, py = self.root.winfo_pointerxy()
+        x, y = self.root.winfo_rootx(), self.root.winfo_rooty()
+        inside = x <= px < x + self.root.winfo_width() and y <= py < y + self.root.winfo_height()
+        down = mouse_down()
+        if down and not self.was_down and inside and not self.dragging:
+            self.press(px, py)
+        self.was_down = down
+        if inside or self.dragging:
+            self.root.after(15, self.poll_pointer)
+        else:
+            self.watching = False
+
+    def press(self, px: int, py: int) -> None:
+        action = self.actions.get(self.root.winfo_containing(px, py))
+        if action:
+            action()
+        else:
+            self.dragging = True
+            self.dx, self.dy = px - self.root.winfo_x(), py - self.root.winfo_y()
+            self.follow()
 
     def follow(self) -> None:
         if not mouse_down():

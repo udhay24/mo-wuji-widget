@@ -93,10 +93,10 @@ The widget is plain Tkinter plus Pillow. Everything native goes through `ctypes`
 - **Desktop level:** the window's `NSWindow` level is set just above the desktop icons. Its collection behaviour makes it appear on all Spaces and stay stationary in Mission Control.
 - **Glass:** an `NSVisualEffectView` (the dark HUD material, blending behind the window) is placed underneath Tk's transparent content view.
 - **Pausing when covered:** `NSWindow.occlusionState` is checked before each frame, and nothing is drawn while the card can't be seen.
-- **Dragging:** macOS drops mouse-move events for desktop-level windows. So during a drag, the widget polls the pointer position and the mouse button state (`CGEventSourceButtonState`).
+- **Clicks and dragging:** while another app is active, macOS drops most clicks on a desktop-level window, though hover events still arrive. So while the pointer is over the card, the widget reads the mouse button itself (`CGEventSourceButtonState`) and works out which control is under the pointer. Drags follow the pointer the same way.
 - **Typing:** a desktop-level window only takes keyboard input once the app is active. So clicking the intention box activates the app and makes the card the key window.
 - **AI calls** run on a worker thread, and their results are handed back to Tk on the main thread, so the card never freezes. The next quote is fetched ahead of time, so it's ready the moment it's needed.
-- **Fonts:** [Cinzel](https://fonts.google.com/specimen/Cinzel) and [Cormorant Garamond](https://fonts.google.com/specimen/Cormorant+Garamond) are bundled in `fonts/`. They're registered for this process only with `CTFontManagerRegisterFontsForURL`, so nothing gets installed on your system.
+- **Font:** [Lora](https://fonts.google.com/specimen/Lora) (SemiBold and Medium Italic) is bundled in `fonts/`. It's registered for this process only with `CTFontManagerRegisterFontsForURL`, so nothing gets installed on your system.
 
 ## Credits and disclaimer
 

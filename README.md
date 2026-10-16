@@ -57,7 +57,7 @@ Store your OpenRouter key in the macOS Keychain. The command prompts for the key
 security add-generic-password -s mo-wuji-widget -a openrouter -w
 ```
 
-Then restart the widget. Text uses `mistralai/mistral-nemo`, the cheapest capable model on OpenRouter, at a few millionths of a dollar per quote. To use a different model, change `MODEL` in `voice.py`. Small models sometimes slip, so generated quotes that run words together, contain numbers or mention the app's mechanics are discarded, and a built-in quote is shown instead.
+Then restart the widget. Text uses NVIDIA's free `nvidia/nemotron-3.5-super-vl:free`. When that endpoint is busy or withdrawn, OpenRouter falls back to `mistralai/mistral-nemo`, which costs a few millionths of a dollar per quote. To use different models, change `MODEL` and `FALLBACK_MODELS` in `voice.py`. Free endpoints may log prompts, and your session intentions are part of the prompts. Small models sometimes slip, so generated quotes that run words together, contain numbers or mention the app's mechanics are discarded, and a built-in quote is shown instead.
 
 ## Using it
 

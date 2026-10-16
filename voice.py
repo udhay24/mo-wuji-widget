@@ -1,6 +1,7 @@
 """Optional OpenRouter voice for Mo Wuji. Without a key, or offline, the widget uses its built-in text."""
 import json
 import queue
+import random
 import re
 import subprocess
 import threading
@@ -10,7 +11,10 @@ import urllib.request
 from typing import Callable
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "mistralai/mistral-nemo"  # cheapest capable text model on OpenRouter
+MODEL = "nvidia/nemotron-3.5-super-vl:free"  # free, and writes better than the cheapest paid models
+FALLBACK_MODELS = ["mistralai/mistral-nemo"]  # used when the free endpoint is busy or withdrawn
+IMAGES = ["a river", "a mountain", "a sword", "fire", "the stars", "a pill furnace", "lightning", "a seed", "the sea",
+          "a blade being forged", "dawn", "a storm", "a gate", "roots", "the moon", "an ancient tree", "snow", "a path"]
 KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT = "mo-wuji-widget", "openrouter"
 
 PERSONA = (
@@ -76,7 +80,8 @@ class Voice:
 
         def work() -> None:
             try:
-                text = complete(self.key, messages, max_tokens, temperature=0.9)["choices"][0]["message"]["content"]
+                text = complete(self.key, messages, max_tokens, models=[MODEL, *FALLBACK_MODELS], temperature=0.9,
+                                reasoning={"enabled": False})["choices"][0]["message"]["content"] or ""
                 self.results.put((on_done, text.strip()))
             except (urllib.error.URLError, TimeoutError, KeyError, IndexError, ValueError):
                 self.results.put((on_done, None))
@@ -97,6 +102,7 @@ class Voice:
         avoid = "\n".join(f"- {q}" for q in recent[-12:]) or "- (none yet)"
         prompt = (
             f"Write one new motivational line in your voice. Tone: {tone}.\n"
+            f"Build it around this image: {random.choice(IMAGES)}.\n"
             f"Match the style of these lines: short, plain words, one vivid image, a strong ending.\n{samples}\n"
             f"About the reader, for subtle flavour only: {context}. Never state days, times or numbers.\n"
             f"Under 25 words. It must not repeat or echo any of these:\n{avoid}\n"

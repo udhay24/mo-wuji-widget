@@ -21,7 +21,7 @@ A macOS desktop widget that keeps a motivational quote on your desktop, voiced i
   - writes a short chronicle of your week, shown in the summary
 
   Without a key, or offline, everything falls back to the built-in text.
-- **It's light on the CPU.** It renders about 5 frames a second, at under 1% of one core while visible. It stops rendering entirely while app windows cover it.
+- **It's light on the CPU.** It renders about 5 frames a second through Core Animation, at about 4% of one core while visible. It stops rendering while app windows cover it, and then uses about 0.3%.
 - **It stays out of the way.** It has no Dock icon, it starts at login, and only one copy can run at a time. You can drag it anywhere, and it remembers where you put it.
 
 ![All 16 scenes](docs/scenes.png)
@@ -67,12 +67,13 @@ Then restart the widget. Text uses NVIDIA's free `nvidia/nemotron-3.5-super-vl:f
 | Start a focus session | Click **CULTIVATE** or the "2 of 4 today" counter. Choose a length and a daily goal, type an intention if you like, then click **BEGIN ›** or press Return. |
 | Stop a session early | Click **END EARLY**, then **END**. A session ended early isn't counted. |
 | Move the card | Drag it from anywhere on the card |
+| Resize the card | Drag the grip in the bottom-right corner. It scales from 80% to 180%, and the size is remembered. |
 | Close it | Click **×** |
 | Start it again after closing | `launchctl kickstart gui/$(id -u)/com.mowuji.widget` |
 | See it while apps are open | Show the desktop: spread your thumb and three fingers on the trackpad, or click the wallpaper on macOS 14 and later |
 | Uninstall | `./uninstall.sh` |
 
-Errors are logged to `~/Library/Logs/mo-wuji-widget.log`. Your sessions, goal, card position and generated text are saved in `~/Library/Application Support/mo-wuji-widget/state.json`.
+Errors are logged to `~/Library/Logs/mo-wuji-widget.log`. Your sessions, goal, card position and size, and generated text are saved in `~/Library/Application Support/mo-wuji-widget/state.json`.
 
 ## Customize
 

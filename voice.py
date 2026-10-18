@@ -80,7 +80,7 @@ class Voice:
 
         def work() -> None:
             try:
-                text = complete(self.key, messages, max_tokens, models=[MODEL, *FALLBACK_MODELS], temperature=0.9,
+                text = complete(self.key, messages, max_tokens, models=[MODEL, *FALLBACK_MODELS], temperature=0.7,
                                 reasoning={"enabled": False})["choices"][0]["message"]["content"] or ""
                 self.results.put((on_done, text.strip()))
             except (urllib.error.URLError, TimeoutError, KeyError, IndexError, ValueError):
@@ -105,6 +105,8 @@ class Voice:
             f"Build it around this image: {random.choice(IMAGES)}.\n"
             f"Match the style of these lines: short, plain words, one vivid image, a strong ending.\n{samples}\n"
             f"About the reader, for subtle flavour only: {context}. Never state days, times or numbers.\n"
+            "It must make plain, literal sense read aloud: every 'it', 'them' or 'this' clearly points to "
+            "something named in the line, and the ending follows from the image.\n"
             f"Under 25 words. It must not repeat or echo any of these:\n{avoid}\n"
             'Reply with JSON only: {"quote": "...", "theme": "On <one or two plain words>"}'
         )

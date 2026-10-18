@@ -6,10 +6,13 @@ import subprocess
 import sys
 import time
 import tkinter as tk
+import tkinter.font as tkfont
 from collections import Counter
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Callable
+
+from PIL import Image
 
 from avatar import Avatar, time_of_day
 from voice import Voice
@@ -17,11 +20,18 @@ from voice import Voice
 BASE = Path(__file__).resolve().parent
 REFRESH_MS = 30 * 60 * 1000
 TICK_MS = 180
-WIDTH = 470
-TITLE_FONT, QUOTE_FONT = "Lora", "Lora"
-BG, FG, GOLD, DIM = "systemTransparent", "#f4f0e8", "#e8c47c", "#b4aabe"
-BAR_DIM = "#6f6680"
-FIELD_BG = "#262330"
+WIDTH = 470               # card width at 100%
+TEXT_W = 274              # width of the text column at 100%
+PAD = 16                  # card inset and the gap between scene and text
+XS, SM, MD = 4, 8, 12     # vertical spacing steps inside the text column
+SCALES = (0.8, 1.8)       # smallest and largest card size
+FONT = "Lora"
+# colours checked on the tinted glass over a bright sky: secondary text 5.0:1, main 6.3:1 (10:1+ on darker wallpapers)
+BG, FG, GOLD, DIM = "systemTransparent", "#f7f4ee", "#e8c47c", "#d6dbe2"
+BAR_DIM = "#8796a6"       # chart bars below goal, progress track, secondary button outline
+INK = "#111820"           # text on gold
+FIELD_BG = "#1c2530"
+TINT = (0x11 / 255, 0x18 / 255, 0x20 / 255, 0.40)   # the lightest tint that keeps text readable
 STATE_FILE = Path.home() / "Library/Application Support/mo-wuji-widget/state.json"
 DURATIONS = (25, 50, 90)
 
@@ -32,6 +42,17 @@ objc.objc_getClass.restype = ctypes.c_void_p
 objc.sel_registerName.restype = ctypes.c_void_p
 appkit.CGEventSourceButtonState.restype = ctypes.c_bool
 appkit.CGEventSourceButtonState.argtypes = [ctypes.c_int32, ctypes.c_uint32]
+appkit.CFDataCreate.restype = ctypes.c_void_p
+appkit.CFDataCreate.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_long]
+appkit.CFRelease.argtypes = [ctypes.c_void_p]
+appkit.CGDataProviderCreateWithCFData.restype = ctypes.c_void_p
+appkit.CGDataProviderCreateWithCFData.argtypes = [ctypes.c_void_p]
+appkit.CGColorSpaceCreateWithName.restype = ctypes.c_void_p
+appkit.CGColorSpaceCreateWithName.argtypes = [ctypes.c_void_p]
+appkit.CGImageCreate.restype = ctypes.c_void_p
+appkit.CGImageCreate.argtypes = [ctypes.c_size_t] * 5 + [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p,
+                                                           ctypes.c_void_p, ctypes.c_bool, ctypes.c_int]
+appkit.CGImageRelease.argtypes = [ctypes.c_void_p]
 
 
 def load_fonts() -> None:
@@ -100,8 +121,83 @@ def make_glass(win: int, width: int, height: int) -> None:
     appkit.CGColorCreateGenericRGB.restype = ctypes.c_void_p
     appkit.CGColorCreateGenericRGB.argtypes = [ctypes.c_double] * 4
     msg(layer, b"setBorderColor:", appkit.CGColorCreateGenericRGB(1, 1, 1, 0.18), argtypes=(ctypes.c_void_p,))
-    msg(msg(content, b"superview"), b"addSubview:positioned:relativeTo:", glass, -1, content,
+    name = msg(objc.objc_getClass(b"NSString"), b"stringWithUTF8String:", b"NSAppearanceNameDarkAqua",
+               argtypes=(ctypes.c_char_p,))
+    dark = msg(objc.objc_getClass(b"NSAppearance"), b"appearanceNamed:", name, argtypes=(ctypes.c_void_p,))
+    msg(glass, b"setAppearance:", dark, argtypes=(ctypes.c_void_p,))
+    frame = msg(content, b"superview")
+    msg(frame, b"addSubview:positioned:relativeTo:", glass, -1, content,
         argtypes=(ctypes.c_void_p, ctypes.c_long, ctypes.c_void_p))
+    # a dark tint over the blur keeps text readable over bright wallpapers; it sits below Tk's content
+    tint = msg(msg(objc.objc_getClass(b"NSView"), b"alloc"), b"initWithFrame:", CGRect(0, 0, width, height),
+               argtypes=(CGRect,))
+    msg(tint, b"setAutoresizingMask:", 18, argtypes=(ctypes.c_ulong,))
+    msg(tint, b"setWantsLayer:", 1, argtypes=(ctypes.c_bool,))
+    tint_layer = msg(tint, b"layer")
+    msg(tint_layer, b"setBackgroundColor:", appkit.CGColorCreateGenericRGB(*TINT), argtypes=(ctypes.c_void_p,))
+    msg(tint_layer, b"setCornerRadius:", 16.0, argtypes=(ctypes.c_double,))
+    msg(frame, b"addSubview:positioned:relativeTo:", tint, -1, content,
+        argtypes=(ctypes.c_void_p, ctypes.c_long, ctypes.c_void_p))
+
+
+class SceneLayer:
+    """Shows the animated scene through Core Animation. Tk redraws a changing image slowly on macOS:
+    about 8% of a core at this frame rate, against about 3% this way."""
+
+    def __init__(self, win: int, avatar: Avatar) -> None:
+        self.avatar, self.label = avatar, avatar.label_img
+        self.content = msg(win, b"contentView")
+        self.pixels = msg(win, b"backingScaleFactor", restype=ctypes.c_double)   # 2 on Retina screens
+        self.space = appkit.CGColorSpaceCreateWithName(ctypes.c_void_p.in_dll(appkit, "kCGColorSpaceSRGB"))
+        msg(self.content, b"setWantsLayer:", 1, argtypes=(ctypes.c_bool,))
+        self.layer = msg(objc.objc_getClass(b"CALayer"), b"layer")
+        msg(self.layer, b"setAutoresizingMask:", 8, argtypes=(ctypes.c_uint,))   # keep its distance from the top
+        msg(msg(self.content, b"layer"), b"addSublayer:", self.layer, argtypes=(ctypes.c_void_p,))
+        self.label.winfo_toplevel().bind("<Configure>", self.place, add="+")
+        self.place()
+
+    @staticmethod
+    def transaction(change: Callable[[], None]) -> None:
+        ca = objc.objc_getClass(b"CATransaction")
+        msg(ca, b"begin")
+        msg(ca, b"setDisableActions:", 1, argtypes=(ctypes.c_bool,))   # no fade or slide between frames
+        change()
+        msg(ca, b"commit")
+
+    def place(self, e: tk.Event | None = None) -> None:
+        """Keeps the layer over the scene's slot in the Tk layout; macOS measures from the bottom-left."""
+        root = self.label.winfo_toplevel()
+        x, y = self.label.winfo_rootx() - root.winfo_rootx(), self.label.winfo_rooty() - root.winfo_rooty()
+        w, h = self.avatar.size
+        height = msg(self.content, b"frame", restype=CGRect).h
+        self.transaction(lambda: msg(self.layer, b"setFrame:", CGRect(x, height - y - h, w, h), argtypes=(CGRect,)))
+
+    def show(self, frame: Image.Image) -> None:
+        w, h = (round(v * self.pixels) for v in self.avatar.size)
+        pixels = frame.resize((w, h), Image.LANCZOS if w > frame.width else Image.BOX).tobytes()
+        data = appkit.CFDataCreate(None, pixels, len(pixels))
+        provider = appkit.CGDataProviderCreateWithCFData(data)
+        image = appkit.CGImageCreate(w, h, 8, 32, w * 4, self.space, 5, provider, None, False, 0)  # 5 = RGB, skip alpha
+        self.transaction(lambda: msg(self.layer, b"setContents:", image, argtypes=(ctypes.c_void_p,)))
+        appkit.CGImageRelease(image)
+        appkit.CFRelease(provider)
+        appkit.CFRelease(data)
+
+
+class NSPoint(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_double), ("y", ctypes.c_double)]
+
+
+def mouse_location() -> NSPoint:
+    return msg(objc.objc_getClass(b"NSEvent"), b"mouseLocation", restype=NSPoint)
+
+
+def card_is_under_pointer(win: int) -> bool:
+    """True only if a click at the pointer would land on the card, not on a window covering it."""
+    point = mouse_location()
+    hit = msg(objc.objc_getClass(b"NSWindow"), b"windowNumberAtPoint:belowWindowWithWindowNumber:", point, 0,
+              restype=ctypes.c_long, argtypes=(NSPoint, ctypes.c_long))
+    return hit == msg(win, b"windowNumber", restype=ctypes.c_long)
 
 
 def is_visible(win: int) -> bool:
@@ -173,6 +269,11 @@ class QuoteWidget:
         self.ai_turn = False                # AI and built-in quotes take turns
         self.fetching = False
         self.chronicling: str | None = None
+        self.scale = 1.0
+        self.fonts: dict[tuple[int, str], tkfont.Font] = {}
+        self.buttons: dict[tk.Canvas, list] = {}       # canvas -> [text, kind, square]
+        self.spaced: list[tuple[tk.Widget, dict]] = []  # packed widgets whose padding scales with the card
+        self.resizing: tuple[int, float] | None = None
 
         load_fonts()
         self.root = tk.Tk()
@@ -182,10 +283,10 @@ class QuoteWidget:
         self.root.configure(bg=BG)
         self.voice = Voice(self.root)
 
-        frame = tk.Frame(self.root, bg=BG, padx=14, pady=12)
+        self.frame = frame = tk.Frame(self.root, bg=BG)
         frame.pack(fill="both", expand=True)
-        left = tk.Frame(frame, bg=BG)
-        left.pack(side="left", fill="y", padx=(0, 14))
+        self.left = left = tk.Frame(frame, bg=BG)
+        left.pack(side="left", fill="y")
         self.avatar = Avatar(left, TICK_MS)
         self.avatar.label_img.pack()
         self.avatar.tick()
@@ -194,16 +295,20 @@ class QuoteWidget:
         right.pack(side="left", fill="both", expand=True)
         top = tk.Frame(right, bg=BG)
         top.pack(fill="x")
-        tk.Label(top, text="MO WUJI", bg=BG, fg=GOLD, font=(TITLE_FONT, 10, "bold")).pack(side="left")
-        self.link(top, "×", self.root.destroy, fg=DIM, font=(QUOTE_FONT, 16, "italic")).pack(side="right")
-        self.progress = self.link(top, "", self.open_cultivation, fg=DIM, font=(QUOTE_FONT, 12, "italic"))
-        self.progress.pack(side="right", padx=(0, 10))
+        tk.Label(top, text="MO WUJI", bg=BG, fg=GOLD, font=self.font(12, "title"), pady=0).pack(side="left")
+        self.button(top, "×", self.root.destroy, kind="close").pack(side="right")
+        self.progress = self.link(top, "", self.open_cultivation, fg=DIM, font=self.font(12))
+        self.progress.configure(pady=0)
+        self.progress.pack(side="right", padx=(0, self.px(SM)))
 
         self.views = {name: tk.Frame(right, bg=BG) for name in ("quote", "setup", "session")}
         self.build_quote_view(self.views["quote"])
         self.build_setup_view(self.views["setup"])
         self.build_session_view(self.views["session"])
+        self.grip = tk.Canvas(self.root, bg=BG, highlightthickness=0, cursor="bottom_right_corner")
+        self.actions[self.grip] = self.begin_resize
         self.root.bind_all("<Enter>", self.watch_pointer, add="+")
+        self.apply_scale(self.state.get("scale", 1.0), place=False)
 
         self.next_quote()
         self.refresh_progress()
@@ -211,12 +316,15 @@ class QuoteWidget:
         self.root.update_idletasks()
         sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
         h = self.root.winfo_reqheight()
-        x, y = self.state.get("pos", (sw - WIDTH - 24, sh - h - 110))
+        w = self.px(WIDTH)
+        x, y = self.state.get("pos", (sw - w - 24, sh - h - 110))
         if not (0 <= x <= sw - 60 and 0 <= y <= sh - 60):
-            x, y = sw - WIDTH - 24, sh - h - 110
-        self.root.geometry(f"{WIDTH}x{h}+{x}+{y}")
+            x, y = sw - w - 24, sh - h - 110
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
         self.win = pin_to_desktop()
-        make_glass(self.win, WIDTH, h)
+        make_glass(self.win, w, h)
+        self.avatar.output = SceneLayer(self.win, self.avatar).show
+        self.avatar.tick()
 
         active = self.state.get("active")
         if active and time.time() >= active["end"]:
@@ -227,85 +335,238 @@ class QuoteWidget:
         self.root.after(REFRESH_MS, self.auto_quote)
         self.animate()
 
+    # ---------- size ----------
+    def px(self, value: float) -> int:
+        return round(value * self.scale)
+
+    def font(self, size: int, style: str = "body") -> tkfont.Font:
+        """Named fonts, so a size change updates every label that uses them.
+        title = Lora SemiBold, body = Lora Medium, quote = Lora Medium Italic."""
+        if (size, style) not in self.fonts:
+            self.fonts[(size, style)] = tkfont.Font(family=FONT, size=self.px(size),
+                                                    weight="bold" if style == "title" else "normal",
+                                                    slant="italic" if style == "quote" else "roman")
+        return self.fonts[(size, style)]
+
+    def apply_scale(self, scale: float, place: bool = True) -> None:
+        self.scale = scale
+        for (size, _), f in self.fonts.items():
+            f.configure(size=max(min(size, 11), self.px(size)))   # labels stay readable at 80%
+        self.refit(self.root)
+        self.frame.configure(padx=self.px(PAD), pady=self.px(PAD))
+        self.left.pack_configure(padx=(0, self.px(PAD)))
+        for c in self.buttons:
+            self.draw_button(c)
+        for label in (self.quote, self.chronicle_text):
+            label.configure(wraplength=self.px(TEXT_W - 4))   # italic overhang stays inside the column
+        for widget, opts in self.spaced:
+            if widget.winfo_manager() == "pack":
+                widget.pack_configure(**self.scaled(opts))
+        self.chart.configure(width=self.px(TEXT_W), height=self.px(50))
+        self.bar.configure(width=self.px(TEXT_W), height=max(3, self.px(4)))
+        if self.state.get("active") is None:
+            self.draw_bar(0)
+        self.avatar.set_display(scale)
+        g = self.px(14)
+        self.grip.configure(width=g, height=g)
+        self.grip.delete("all")
+        for i in (0.3, 0.6, 0.9):
+            self.grip.create_line(g, g - g * i, g - g * i, g, fill=BAR_DIM, width=max(1, self.px(1)))
+        self.grip.place(relx=1, rely=1, x=-self.px(4), y=-self.px(4), anchor="se")
+        self.root.tk.call("raise", self.grip._w)  # Canvas.lift raises canvas items, not the widget
+        if self.views["setup"].winfo_ismapped():
+            self.refresh_setup()
+        if not place:
+            return
+        # resizing from the bottom-right grip keeps the top-left corner still
+        x, y = self.root.winfo_x(), self.root.winfo_y()
+        self.root.update_idletasks()
+        self.root.geometry(f"{self.px(WIDTH)}x{self.root.winfo_reqheight()}+{x}+{y}")
+        active = self.state.get("active")
+        if active and self.views["session"].winfo_ismapped():
+            self.draw_bar(min(1, (time.time() - active["start"]) / (active["end"] - active["start"])))
+
+    def refit(self, widget: tk.Widget) -> None:
+        """Tk keeps a label's old size when its named font changes; setting the font again re-measures it."""
+        if isinstance(widget, (tk.Label, tk.Entry)):
+            widget.configure(font=widget.cget("font"))
+        for child in widget.winfo_children():
+            self.refit(child)
+
+    def begin_resize(self) -> None:
+        self.resizing = (self.root.winfo_pointerxy()[0], self.scale)
+        self.dragging = True
+        self.follow_resize()
+
+    def follow_resize(self) -> None:
+        if not mouse_down():
+            self.dragging, self.resizing = False, None
+            self.state["scale"] = self.scale
+            save_state(self.state)
+            return
+        start_x, start_scale = self.resizing
+        width = WIDTH * start_scale + self.root.winfo_pointerxy()[0] - start_x
+        scale = round(min(SCALES[1], max(SCALES[0], round(width / WIDTH / 0.05) * 0.05)), 2)
+        if abs(scale - self.scale) > 1e-6:
+            self.apply_scale(scale)
+        self.root.after(16, self.follow_resize)
+
     # ---------- building ----------
-    def link(self, parent: tk.Widget, text: str, command, fg: str = GOLD, font: tuple | None = None) -> tk.Label:
-        label = tk.Label(parent, text=text, bg=BG, fg=fg, font=font or (TITLE_FONT, 9, "bold"), cursor="hand2")
+    def link(self, parent: tk.Widget, text: str, command, fg: str = GOLD, font: tkfont.Font | None = None) -> tk.Label:
+        label = tk.Label(parent, text=text, bg=BG, fg=fg, font=font or self.font(13), cursor="hand2")
         self.actions[label] = command
         return label
 
-    def text(self, parent: tk.Widget, text: str = "", fg: str = DIM, size: int = 12, **kw) -> tk.Label:
-        return tk.Label(parent, text=text, bg=BG, fg=fg, font=(QUOTE_FONT, size, "italic"), **kw)
+    def text(self, parent: tk.Widget, text: str = "", fg: str = DIM, size: int = 13, style: str = "body",
+             **kw) -> tk.Label:
+        return tk.Label(parent, text=text, bg=BG, fg=fg, font=self.font(size, style), **kw)
+
+    def spaced_pack(self, widget: tk.Widget, **opts) -> None:
+        """pack() with padding given in spacing units, kept in proportion when the card is resized."""
+        self.spaced.append((widget, opts))
+        widget.pack(**self.scaled(opts))
+
+    def scaled(self, opts: dict) -> dict:
+        def one(v):
+            return tuple(self.px(x) for x in v) if isinstance(v, tuple) else self.px(v)
+        return {k: one(v) if k in ("padx", "pady") else v for k, v in opts.items()}
+
+    def button(self, parent: tk.Widget, text: str, command, kind: str = "secondary", square: bool = False) -> tk.Canvas:
+        """A rounded button with a 28pt hit area. kind: primary (gold fill), secondary (outline) or ghost."""
+        c = tk.Canvas(parent, bg=BG, highlightthickness=0, cursor="hand2")
+        self.buttons[c] = [text, kind, square]
+        self.actions[c] = command
+        self.draw_button(c)
+        return c
+
+    def set_kind(self, c: tk.Canvas, kind: str) -> None:
+        self.buttons[c][1] = kind
+        self.draw_button(c)
+
+    def draw_button(self, c: tk.Canvas) -> None:
+        text, kind, square = self.buttons[c]
+        if kind == "close":   # sits in the header line, its glyph flush with the column's right edge
+            f = self.font(16)
+            h, w = self.font(12).metrics("linespace"), self.px(24)
+            c.configure(width=w, height=h)
+            c.delete("all")
+            c.create_text(w, h / 2, text=text, font=f, fill=DIM, anchor="e")
+            return
+        f = self.font(16, "body") if square else self.font(13, "body")
+        h = max(24, self.px(28))
+        w = h if square else f.measure(text) + 2 * self.px(10)
+        c.configure(width=w, height=h)
+        c.delete("all")
+        if kind != "ghost":
+            r, x1, y1, x2, y2 = self.px(7), 1, 1, w - 1, h - 1
+            pts = [x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r, x2, y2 - r, x2, y2, x2 - r, y2, x1 + r, y2,
+                   x1, y2, x1, y2 - r, x1, y1 + r, x1, y1]
+            c.create_polygon(pts, smooth=True, fill=GOLD if kind == "primary" else "",
+                             outline=GOLD if kind == "primary" else BAR_DIM)
+        c.create_text(w / 2, h / 2 - (1 if square else 0), text=text, font=f,
+                      fill=INK if kind == "primary" else (DIM if kind == "ghost" else FG))
 
     def build_quote_view(self, v: tk.Frame) -> None:
-        self.quote = tk.Label(v, bg=BG, fg=FG, font=(QUOTE_FONT, 15, "italic"),
-                              wraplength=WIDTH - 200, justify="left", anchor="w")
-        self.quote.pack(fill="x", pady=(6, 6))
+        self.quote = tk.Label(v, bg=BG, fg=FG, font=self.font(16, "quote"), justify="left", anchor="w", pady=0)
+        self.spaced_pack(self.quote, fill="x", pady=(SM, MD))
         bottom = tk.Frame(v, bg=BG)
         bottom.pack(fill="x", side="bottom")
-        self.theme = self.text(bottom, anchor="w")
+        self.theme = self.text(bottom, style="quote", anchor="w")
         self.theme.pack(side="left")
-        self.link(bottom, "NEXT ›", self.next_quote).pack(side="right")
-        self.link(bottom, "CULTIVATE", self.open_cultivation, fg=DIM).pack(side="right", padx=(0, 14))
+        self.button(bottom, "Cultivate", self.open_cultivation, kind="primary").pack(side="right")
+        self.button(bottom, "Next", self.next_quote).pack(side="right", padx=(0, 8))
 
     def build_setup_view(self, v: tk.Frame) -> None:
-        self.text(v, "Closed-door cultivation", fg=FG, size=15, anchor="w").pack(fill="x", pady=(6, 4))
+        self.text(v, "Closed-door cultivation", fg=FG, size=16, style="quote", anchor="w").pack(fill="x", pady=(6, 6))
 
         row = tk.Frame(v, bg=BG)
-        row.pack(fill="x", pady=1)
+        row.pack(fill="x", pady=2)
         self.text(row, "Session", width=9, anchor="w").pack(side="left")
         self.chips = {}
         for minutes in DURATIONS:
-            chip = self.link(row, f"{minutes} MIN", lambda m=minutes: self.set_minutes(m))
-            chip.pack(side="left", padx=(0, 12))
+            chip = self.button(row, str(minutes), lambda m=minutes: self.set_minutes(m))
+            chip.pack(side="left", padx=(0, 6))
             self.chips[minutes] = chip
+        self.text(row, "min").pack(side="left", padx=(2, 0))
 
         row = tk.Frame(v, bg=BG)
-        row.pack(fill="x", pady=1)
+        row.pack(fill="x", pady=2)
         self.text(row, "Daily goal", width=9, anchor="w").pack(side="left")
-        self.link(row, "−", lambda: self.change_goal(-1), fg=GOLD, font=(TITLE_FONT, 12, "bold")).pack(side="left")
-        self.goal_label = tk.Label(row, bg=BG, fg=FG, font=(TITLE_FONT, 11, "bold"), width=3)
+        self.button(row, "\u2212", lambda: self.change_goal(-1), square=True).pack(side="left")
+        self.goal_label = tk.Label(row, bg=BG, fg=FG, font=self.font(13, "title"), width=3)
         self.goal_label.pack(side="left")
-        self.link(row, "+", lambda: self.change_goal(1), fg=GOLD, font=(TITLE_FONT, 12, "bold")).pack(side="left")
-        self.text(row, "sessions a day").pack(side="left", padx=(8, 0))
+        self.button(row, "+", lambda: self.change_goal(1), square=True).pack(side="left")
+        self.text(row, "a day").pack(side="left", padx=(8, 0))
 
         row = tk.Frame(v, bg=BG)
-        row.pack(fill="x", pady=(4, 1))
+        row.pack(fill="x", pady=(4, 2))
         self.text(row, "Intention", width=9, anchor="w").pack(side="left")
         self.intention = tk.Entry(row, bg=FIELD_BG, fg=FG, insertbackground=FG, relief="flat", highlightthickness=1,
-                                  highlightbackground=BAR_DIM, highlightcolor=GOLD, font=(QUOTE_FONT, 13, "italic"))
-        self.intention.pack(side="left", fill="x", expand=True, ipady=2)
+                                  highlightbackground=BAR_DIM, highlightcolor=GOLD, font=self.font(13))
+        self.intention.pack(side="left", fill="x", expand=True, ipady=3)
         self.intention.bind("<Return>", lambda e: self.begin_session())
         self.actions[self.intention] = self.focus_intention
 
-        self.chart = tk.Canvas(v, width=WIDTH - 200, height=50, bg=BG, highlightthickness=0)
+        self.chart = tk.Canvas(v, bg=BG, highlightthickness=0)
         self.chart.pack(anchor="w", pady=(8, 2))
         self.stats = self.text(v, anchor="w", justify="left")
         self.stats.pack(fill="x")
-        self.chronicle_text = self.text(v, anchor="w", justify="left", wraplength=WIDTH - 200)
+        self.chronicle_text = self.text(v, style="quote", anchor="w", justify="left")
 
         bottom = tk.Frame(v, bg=BG)
-        bottom.pack(fill="x", side="bottom", pady=(6, 0))
-        self.link(bottom, "BACK", lambda: self.show_view("quote"), fg=DIM).pack(side="left")
-        self.link(bottom, "BEGIN ›", self.begin_session).pack(side="right")
+        bottom.pack(fill="x", side="bottom", pady=(8, 0))
+        self.button(bottom, "Back", lambda: self.show_view("quote")).pack(side="left")
+        self.button(bottom, "Begin", self.begin_session, kind="primary").pack(side="right")
 
     def build_session_view(self, v: tk.Frame) -> None:
-        self.session_title = self.text(v, anchor="w")
-        self.session_title.pack(fill="x", pady=(6, 0))
-        self.timer = tk.Label(v, bg=BG, fg=FG, font=(TITLE_FONT, 28, "bold"), anchor="w")
+        self.session_title = self.text(v, anchor="w", pady=0)
+        self.spaced_pack(self.session_title, fill="x", pady=(XS, 0))
+        self.timer = tk.Label(v, bg=BG, fg=FG, font=self.font(34, "title"), anchor="w", pady=0)
         self.timer.pack(fill="x")
-        self.bar = tk.Canvas(v, width=WIDTH - 200, height=4, bg=BG, highlightthickness=0)
-        self.bar.pack(anchor="w", pady=(2, 6))
-        self.session_note = self.text(v, anchor="w", justify="left", wraplength=WIDTH - 200)
-        self.session_note.pack(fill="x")
+        self.bar = tk.Canvas(v, bg=BG, highlightthickness=0)
+        self.spaced_pack(self.bar, anchor="w", pady=(XS, SM))
+        self.debrief = self.text(v, fg=FG, style="quote", anchor="w", justify="left", pady=0)
 
         bottom = tk.Frame(v, bg=BG)
-        bottom.pack(fill="x", side="bottom", pady=(6, 0))
-        self.end_link = self.link(bottom, "END EARLY", self.ask_end, fg=DIM)
-        self.confirm = tk.Frame(bottom, bg=BG)
-        self.text(self.confirm, "End without counting it?").pack(side="left")
-        self.link(self.confirm, "END", self.end_early, fg=DIM).pack(side="left", padx=(10, 0))
-        self.link(self.confirm, "KEEP GOING", self.keep_going).pack(side="left", padx=(12, 0))
-        self.continue_link = self.link(bottom, "CONTINUE ›", self.leave_session)
+        bottom.pack(fill="x", side="bottom")
+        self.session_actions = tk.Frame(bottom, bg=BG)
+        self.session_actions.pack(side="right", anchor="se")
+        info = tk.Frame(bottom, bg=BG)
+        info.pack(side="left", fill="x", expand=True, anchor="sw")
+        self.session_note = self.text(info, anchor="w", justify="left", pady=0)
+        self.session_aim = self.text(info, fg=FG, anchor="w", justify="left", pady=0)
+        self.confirm_text = self.text(info, "End it now? It won't count.", anchor="w", justify="left", pady=0)
+
+        self.end_link = self.button(self.session_actions, "End session", self.ask_end)
+        self.confirm = tk.Frame(self.session_actions, bg=BG)
+        self.button(self.confirm, "Keep going", self.keep_going, kind="primary").pack(side="left")
+        self.button(self.confirm, "End", self.end_early).pack(side="left", padx=(self.px(6), 0))
+        self.continue_link = self.button(self.session_actions, "Continue", self.leave_session, kind="primary")
+
+    def show_session_parts(self, info: tuple, action: tk.Widget, message: str = "") -> None:
+        """Bottom row: detail lines on the left, one action group on the right. An optional message
+        (Mo Wuji's debrief) gets the full width above that row."""
+        for w in (self.session_note, self.session_aim, self.confirm_text, self.end_link, self.confirm,
+                  self.continue_link, self.debrief):
+            w.pack_forget()
+        action.pack(side="right")
+        self.root.update_idletasks()
+        room = self.px(TEXT_W) - action.winfo_reqwidth() - self.px(SM)
+        for w in info:
+            w.configure(wraplength=room)
+            w.pack(fill="x")
+        if message:
+            self.debrief.configure(text=message, wraplength=self.px(TEXT_W))
+            self.spaced_pack(self.debrief, fill="x", pady=(0, MD))
+        self.resize()
+
+    def fit_line(self, text: str, font: tkfont.Font, width: int) -> str:
+        """Shortens text with an ellipsis so it stays on one line."""
+        if font.measure(text) <= width:
+            return text
+        while text and font.measure(text + "…") > width:
+            text = text[:-1]
+        return text.rstrip() + "…"
 
     # ---------- views ----------
     def show_view(self, name: str, resize: bool = True) -> None:
@@ -323,7 +584,7 @@ class QuoteWidget:
         self.root.update_idletasks()
         h = self.root.winfo_reqheight()
         y = self.root.winfo_y() + old_h - h if old_h > 1 else self.root.winfo_y()
-        self.root.geometry(f"{WIDTH}x{h}+{self.root.winfo_x()}+{max(0, y)}")
+        self.root.geometry(f"{self.px(WIDTH)}x{h}+{self.root.winfo_x()}+{max(0, y)}")
 
     def next_quote(self) -> None:
         self.ai_turn = not self.ai_turn
@@ -385,23 +646,23 @@ class QuoteWidget:
     def refresh_setup(self) -> None:
         goal = self.state["goal"]
         for minutes, chip in self.chips.items():
-            chip.config(fg=GOLD if minutes == self.state["minutes"] else BAR_DIM)
+            self.set_kind(chip, "primary" if minutes == self.state["minutes"] else "secondary")
         self.goal_label.config(text=str(goal))
         s = summarize(self.state["sessions"], goal)
 
-        c, w = self.chart, WIDTH - 200
+        c, w = self.chart, self.px(TEXT_W)
         c.delete("all")
-        top, base, col = 4, 34, w / 7
+        top, base, col = self.px(4), self.px(34), w / 7
         peak = max([goal] + [n for _, n in s["week"]])
         goal_y = base - (base - top) * goal / peak
-        c.create_line(0, goal_y, w, goal_y, fill=BAR_DIM, dash=(2, 3))
+        c.create_line(0, goal_y, w, goal_y, fill=DIM, dash=(2, 3))
         for i, (day, n) in enumerate(s["week"]):
             x0 = i * col + col * 0.28
             if n:
                 c.create_rectangle(x0, base - (base - top) * n / peak, x0 + col * 0.44, base,
                                    fill=GOLD if n >= goal else BAR_DIM, outline="")
-            c.create_text(x0 + col * 0.22, base + 9, text=day.strftime("%a")[0], fill=FG if day == date.today() else DIM,
-                          font=(QUOTE_FONT, 10, "italic"))
+            c.create_text(x0 + col * 0.22, base + self.px(9), text=day.strftime("%a")[0], fill=FG if day == date.today() else DIM,
+                          font=self.font(10))
 
         self.show_chronicle()
         self.stats.config(text=f"Today {s['today']} of {goal} · {s['today_minutes']} min · "
@@ -466,16 +727,15 @@ class QuoteWidget:
         self.enter_session()
 
     def enter_session(self) -> None:
-        self.end_link.pack(side="left")
-        self.confirm.pack_forget()
-        self.continue_link.pack_forget()
         s = summarize(self.state["sessions"], self.state["goal"])
         self.session_title.config(text="In closed-door cultivation")
         active = self.state["active"]
-        note = f"Session {s['today'] + 1} of {self.state['goal']} today · {active['minutes']} min"
-        self.session_note.config(text=note + (f"\n{active['intention']}" if active.get("intention") else ""))
+        self.session_note.config(text=f"Session {s['today'] + 1} of {self.state['goal']} · {active['minutes']} min")
         self.avatar.show("calm", seated=True)
-        self.show_view("session")
+        self.show_view("session", resize=False)
+        self.show_session_parts((self.session_note, self.session_aim), self.end_link)
+        room = self.px(TEXT_W) - self.end_link.winfo_reqwidth() - self.px(SM)
+        self.session_aim.config(text=self.fit_line(active.get("intention", ""), self.font(13), room))
         self.session_tick()
 
     def session_tick(self) -> None:
@@ -492,10 +752,10 @@ class QuoteWidget:
         self.timer_job = self.root.after(1000, self.session_tick)
 
     def draw_bar(self, fraction: float) -> None:
-        w = WIDTH - 200
+        w, h = self.px(TEXT_W), max(3, self.px(4))
         self.bar.delete("all")
-        self.bar.create_rectangle(0, 1, w, 3, fill=BAR_DIM, outline="")
-        self.bar.create_rectangle(0, 1, w * fraction, 3, fill=GOLD, outline="")
+        self.bar.create_rectangle(0, 0, w, h, fill=BAR_DIM, outline="")
+        self.bar.create_rectangle(0, 0, w * fraction, h, fill=GOLD, outline="")
 
     def complete_session(self) -> None:
         active = self.state.pop("active")
@@ -508,35 +768,30 @@ class QuoteWidget:
         self.session_title.config(text="Closed-door cultivation complete")
         self.timer.config(text="Breakthrough")
         self.draw_bar(1)
-        progress = f"{s['today']} of {self.state['goal']} today" + (" · daily goal reached" if goal_met else "")
-        self.session_note.config(text=progress + ("\nMo Wuji is reflecting…" if self.voice.enabled else ""))
+        progress = f"{s['today']} of {self.state['goal']} today" + (" · goal reached" if goal_met else "")
+        self.session_note.config(text=progress)
 
         def show_debrief(text: str | None) -> None:
             if text:
                 record["debrief"] = text
                 save_state(self.state)
             if self.views["session"].winfo_ismapped() and "active" not in self.state:
-                self.session_note.config(text=progress + (f"\n“{text}”" if text else ""))
-                self.resize()
+                self.show_session_parts((self.session_note,), self.continue_link, f"“{text}”" if text else "")
 
         self.voice.debrief(active["minutes"], record["intention"], f"They have now finished {s['today']} of "
                            f"{self.state['goal']} sessions today", show_debrief)
-        self.end_link.pack_forget()
-        self.confirm.pack_forget()
-        self.continue_link.pack(side="right")
+        self.show_session_parts((self.session_note,), self.continue_link,
+                                "Mo Wuji is reflecting…" if self.voice.enabled else "")
         self.avatar.show("god-like")
         self.refresh_progress()
-        self.resize()
         notify("Breakthrough", f"{active['minutes']} minutes of closed-door cultivation complete. "
                                f"{s['today']} of {self.state['goal']} today.")
 
     def ask_end(self) -> None:
-        self.end_link.pack_forget()
-        self.confirm.pack(side="left")
+        self.show_session_parts((self.confirm_text,), self.confirm)
 
     def keep_going(self) -> None:
-        self.confirm.pack_forget()
-        self.end_link.pack(side="left")
+        self.show_session_parts((self.session_note, self.session_aim), self.end_link)
 
     def end_early(self) -> None:
         self.state.pop("active", None)
@@ -571,7 +826,7 @@ class QuoteWidget:
         x, y = self.root.winfo_rootx(), self.root.winfo_rooty()
         inside = x <= px < x + self.root.winfo_width() and y <= py < y + self.root.winfo_height()
         down = mouse_down()
-        if down and not self.was_down and inside and not self.dragging:
+        if down and not self.was_down and inside and not self.dragging and card_is_under_pointer(self.win):
             self.press(px, py)
         self.was_down = down
         if inside or self.dragging:
@@ -585,18 +840,25 @@ class QuoteWidget:
             action()
         else:
             self.dragging = True
-            self.dx, self.dy = px - self.root.winfo_x(), py - self.root.winfo_y()
+            frame = msg(self.win, b"frame", restype=CGRect)
+            self.drag_from = (mouse_location(), frame.x, frame.y)
             self.follow()
 
     def follow(self) -> None:
-        if not mouse_down():
-            self.dragging = False
-            self.state["pos"] = [self.root.winfo_x(), self.root.winfo_y()]
-            save_state(self.state)
+        """Moves the native window directly; going through Tk re-lays out the whole card on every step."""
+        start, ox, oy = self.drag_from
+        now = mouse_location()
+        x, y = ox + now.x - start.x, oy + now.y - start.y
+        msg(self.win, b"setFrameOrigin:", NSPoint(x, y), argtypes=(NSPoint,))
+        if mouse_down():
+            self.root.after(8, self.follow)
             return
-        px, py = self.root.winfo_pointerxy()
-        self.root.geometry(f"+{px - self.dx}+{py - self.dy}")
-        self.root.after(8, self.follow)
+        self.dragging = False
+        # tell Tk where the card ended up (Tk measures from the top-left, macOS from the bottom-left)
+        top = self.root.winfo_screenheight() - (y + self.root.winfo_height())
+        self.root.geometry(f"+{round(x)}+{round(top)}")
+        self.state["pos"] = [round(x), round(top)]
+        save_state(self.state)
 
 
 if __name__ == "__main__":

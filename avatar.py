@@ -7,10 +7,11 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageTk
 
-AV_W, AV_H = 120, 138
+AV_W = AV_H = 148              # square, like the paintings
 SS = 3                          # supersample factor for smooth edges
 K = AV_W * SS / 100             # scene units (0..100 wide, 0..115 tall) -> supersampled pixels
-W, H = AV_W * SS, AV_H * SS
+W = AV_W * SS
+H = round(W * 1.15)             # drawn scenes keep their portrait proportions; the bottom square is shown
 BLUR = SS * AV_W / 200
 ART_DIR = Path(__file__).resolve().parent / "art"   # optional painted scenes: art/<scene-name>.jpg
 
@@ -131,11 +132,9 @@ def load_art(sc: Scene) -> Image.Image | None:
     if not path.exists():
         return None
     src = Image.open(path).convert("RGBA")
-    aw, ah = int(W * 1.06), int(H * 1.06)
-    scale = max(aw / src.width, ah / src.height)
-    src = src.resize((round(src.width * scale), round(src.height * scale)), Image.LANCZOS)
-    left, top = (src.width - aw) // 2, (src.height - ah) // 2
-    return src.crop((left, top, left + aw, top + ah))
+    side = min(src.size)   # paintings are square; show all of it
+    left, top = (src.width - side) // 2, (src.height - side) // 2
+    return src.crop((left, top, left + side, top + side)).resize((W, W), Image.LANCZOS)
 
 
 def lerp(a: tuple, b: tuple, f: float) -> tuple[int, ...]:
@@ -312,8 +311,10 @@ class Avatar:
         self.dt = tick_ms / 1000
         # Tk can't draw images on a transparent background, so the scene sits on a solid one it fully covers
         self.label_img = tk.Label(parent, bg="#000000", bd=0, highlightthickness=0)
-        self.photo = ImageTk.PhotoImage(Image.new("RGBA", (AV_W, AV_H), (0, 0, 0, 255)))
+        self.size = (AV_W, AV_H)
+        self.photo = ImageTk.PhotoImage(Image.new("RGBA", self.size, (0, 0, 0, 255)))
         self.label_img.config(image=self.photo)
+        self.output = self.paste   # the widget swaps in a native layer once its window exists
         self.cache: dict[str, Image.Image] = {}
         self.t = 0.0
         self.sc: Scene | None = None
@@ -333,6 +334,13 @@ class Avatar:
             self.rays = [big.rotate(a, resample=Image.BILINEAR).crop(box) for a in range(20)]
         self.parts: list[Particle] = []
         self.next_bolt, self.bolt_until, self.bolt = self.t + 1.5, 0.0, []
+
+    def set_display(self, scale: float) -> None:
+        """Shows the scene at a new size; it is still rendered at full resolution and scaled down."""
+        self.size = (round(AV_W * scale), round(AV_H * scale))
+        self.photo = ImageTk.PhotoImage(Image.new("RGBA", self.size, (0, 0, 0, 255)))
+        self.label_img.config(image=self.photo)
+        self.tick()
 
     def show(self, mood: str | None = None, seated: bool = False) -> None:
         """Switches to a scene of the given mood that suits the time of day."""
@@ -580,11 +588,7 @@ class Avatar:
         sc = self.sc
         breath = math.sin(self.t * 2 * math.pi / 5)
         if self.art is not None:
-            # a slow drift across the painting keeps it alive without redrawing the figure
-            mx, my = self.art.width - W, self.art.height - H
-            ox = int(mx / 2 + mx / 2 * math.sin(self.t * 0.05))
-            oy = int(my / 2 + my / 2 * math.sin(self.t * 0.037))
-            frame = self.art.crop((ox, oy, ox + W, oy + H))
+            frame = self.art.copy()
             strike = (random.uniform(30, 80), 97)
         else:
             frame, strike = self.draw_scene(breath)
@@ -612,10 +616,15 @@ class Avatar:
                 self.next_bolt = self.t + random.uniform(3, 6)
             if self.t < self.bolt_until:
                 fade = (self.bolt_until - self.t) / 0.3
-                flash = Image.new("RGBA", (W, H), (255, 255, 255, int(70 * fade)))
+                flash = Image.new("RGBA", frame.size, (255, 255, 255, int(70 * fade)))
                 frame.alpha_composite(flash)
                 d = ImageDraw.Draw(frame)
                 d.line(u(*self.bolt), fill=sc.fx_color + (int(160 * fade),), width=int(1.6 * K), joint="curve")
                 d.line(u(*self.bolt), fill=(255, 255, 255, int(255 * fade)), width=max(1, int(0.5 * K)))
 
-        self.photo.paste(frame.resize((AV_W, AV_H), Image.BOX))
+        if frame.height > frame.width:   # drawn scenes: keep the bottom square, where the figure stands
+            frame = frame.crop((0, frame.height - frame.width, frame.width, frame.height))
+        self.output(frame)
+
+    def paste(self, frame: Image.Image) -> None:
+        self.photo.paste(frame.resize(self.size, Image.LANCZOS if self.size[0] > AV_W else Image.BOX))

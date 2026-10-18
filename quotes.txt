@@ -11,7 +11,7 @@ Today they call me trash. Tomorrow they will call me master. I will answer to ne
 My meridians were shattered. My will never was.|On what can't be broken|battle
 When there is no road, I become the road.|On forging a path|calm
 I walked through death so many times, death began to step aside.|On fear|battle
-The weak pray for miracles. I refine them, one pill at a time, with my own hands.|On alchemy|calm
+The weak pray for miracles. I refine mine, one pill at a time, with my own hands.|On alchemy|calm
 Kneel to no heaven. Bow to no fate. Stand — even if you stand alone.|On pride|god-like
 I came into this world with empty hands. I will leave it having shaken the stars.|On legacy|god-like
 Let them mock. Mockery is just the sound people make before they are left behind.|On critics|battle
@@ -28,7 +28,7 @@ I do not fear the strong. I fear the version of me that never tried.|On regret|c
 One more breath. One more step. One more strike. That is how mountains are climbed.|On the grind|calm
 Talent is a gift from heaven. Will is a weapon you forge yourself. I chose the weapon.|On will|battle
 The universe is vast and I am small. So what? Small things that never stop can still reach the end.|On scale|calm
-I owe kindness tenfold and grudges in full. And I always pay my debts.|On honor|battle
+I repay kindness tenfold and grudges in full. I always pay my debts.|On honor|battle
 Others had a hundred paths and wasted them. I had none, so I made one — and never wasted a step.|On scarcity|calm
 I bled for every realm I broke through. That is why no one can take them from me.|On earned power|battle
 The sky is not the limit. The sky is just the first thing I'll break.|On ambition|god-like
@@ -76,8 +76,8 @@ A man who has nothing to lose has nothing to fear. A man who has everything to p
 Even the vastest sea began as a single drop of rain.|On small beginnings|calm
 The Dao does not reward the talented. It rewards those who stay.|On staying|calm
 Do not compare your first step to another man's thousandth.|On comparison|calm
-My enemies gave me pressure. Pressure gave me diamonds.|On pressure|battle
-Fear is a mist. Walk through it, and it was never a wall.|On courage|battle
+My enemies gave me pressure. Pressure turned me into a diamond.|On pressure|battle
+Fear looks like a wall. Walk into it, and you find it was only mist.|On courage|battle
 The moment I stop doubting, the heavens begin to tremble.|On self-belief|god-like
 A true cultivator forges his heart before his sword.|On character|calm
 Cultivation is not a sprint across the sky. It is a walk that never stops.|On endurance|calm

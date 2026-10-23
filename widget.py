@@ -33,6 +33,7 @@ INK = "#111820"           # text on gold
 FIELD_BG = "#1c2530"
 TINT = (0x11 / 255, 0x18 / 255, 0x20 / 255, 0.40)   # the lightest tint that keeps text readable
 STATE_FILE = Path.home() / "Library/Application Support/mo-wuji-widget/state.json"
+SCRIPTABLE_DIR = Path.home() / "Library/Mobile Documents/iCloud~dk~simonbs~Scriptable/Documents"   # iPhone widget
 DURATIONS = (25, 50, 90)
 
 
@@ -220,6 +221,20 @@ def save_state(state: dict) -> None:
     tmp = STATE_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(state, indent=1))
     tmp.replace(STATE_FILE)
+    share_progress(state)
+
+
+def share_progress(state: dict) -> None:
+    """Gives the iPhone widget the cultivation counts through Scriptable's iCloud folder, once that exists.
+    Only counts leave the Mac, never what the sessions were for."""
+    if not SCRIPTABLE_DIR.is_dir():
+        return
+    sessions = state.get("sessions", [])
+    data = {"goal": state.get("goal", 4), "days": Counter(s["date"] for s in sessions), "sessions": len(sessions),
+            "hours": round(sum(s["minutes"] for s in sessions) / 60, 1)}
+    tmp = SCRIPTABLE_DIR / ".mo-wuji-progress.tmp"
+    tmp.write_text(json.dumps(data))
+    tmp.replace(SCRIPTABLE_DIR / "mo-wuji-progress.json")
 
 
 def notify(title: str, text: str) -> None:
@@ -265,6 +280,7 @@ class QuoteWidget:
         self.state.setdefault("sessions", [])
         self.state.setdefault("generated", [])
         self.state.setdefault("chronicles", {})
+        share_progress(self.state)
         self.fresh: dict | None = None      # a generated quote waiting to be shown
         self.ai_turn = False                # AI and built-in quotes take turns
         self.fetching = False
@@ -845,18 +861,16 @@ class QuoteWidget:
             self.follow()
 
     def follow(self) -> None:
-        """Moves the native window directly; going through Tk re-lays out the whole card on every step."""
+        """Moves the card through Tk: moving the NSWindow from ctypes let Tk run Python handlers mid-call, a fatal crash."""
         start, ox, oy = self.drag_from
         now = mouse_location()
         x, y = ox + now.x - start.x, oy + now.y - start.y
-        msg(self.win, b"setFrameOrigin:", NSPoint(x, y), argtypes=(NSPoint,))
+        top = self.root.winfo_screenheight() - (y + self.root.winfo_height())   # Tk measures from the top-left
+        self.root.geometry(f"+{round(x)}+{round(top)}")
         if mouse_down():
             self.root.after(8, self.follow)
             return
         self.dragging = False
-        # tell Tk where the card ended up (Tk measures from the top-left, macOS from the bottom-left)
-        top = self.root.winfo_screenheight() - (y + self.root.winfo_height())
-        self.root.geometry(f"+{round(x)}+{round(top)}")
         self.state["pos"] = [round(x), round(top)]
         save_state(self.state)
 
@@ -867,5 +881,6 @@ if __name__ == "__main__":
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        sys.exit("mo-wuji-widget is already running")
+        print("mo-wuji-widget is already running", file=sys.stderr)
+        sys.exit(0)  # a clean exit, so launchd does not keep relaunching it
     QuoteWidget().root.mainloop()

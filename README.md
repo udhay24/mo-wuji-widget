@@ -22,6 +22,7 @@ A macOS desktop widget that keeps a motivational quote on your desktop, voiced i
 
   Without a key, or offline, everything falls back to the built-in text.
 - **It's light on the CPU.** It renders about 5 frames a second through Core Animation, at about 4% of one core while visible. It stops rendering while app windows cover it, and then uses about 0.3%.
+- **It's on your iPhone too.** A [Scriptable](https://scriptable.app) widget shows the same quotes and paintings on the home screen and lock screen, along with your cultivation progress. See [On your iPhone](#on-your-iphone).
 - **It stays out of the way.** It has no Dock icon, it starts at login, and only one copy can run at a time. You can drag it anywhere, and it remembers where you put it.
 
 ![All 16 scenes](docs/scenes.png)
@@ -74,6 +75,20 @@ Then restart the widget. Text uses NVIDIA's free `nvidia/nemotron-3.5-super-vl:f
 | Uninstall | `./uninstall.sh` |
 
 Errors are logged to `~/Library/Logs/mo-wuji-widget.log`. Your sessions, goal, card position and size, and generated text are saved in `~/Library/Application Support/mo-wuji-widget/state.json`.
+
+## On your iPhone
+
+`iphone/Mo Wuji.js` is a widget for the free [Scriptable](https://scriptable.app) app. It comes in small, medium and large home-screen sizes, plus three lock-screen sizes. Medium looks like the Mac card: the painting on the left, the quote on the right. iOS widgets can't animate, so the paintings stay still, and iOS decides exactly when to refresh. The script asks for a new quote every 30 minutes. Quotes and paintings download from this repo and are cached, so the widget works offline.
+
+1. Install Scriptable on the iPhone and open it once. Keep iCloud Drive on for Scriptable.
+2. Add the script to Scriptable in one of two ways:
+   - **From your Mac:** once the Scriptable folder appears in iCloud Drive, run `cp "iphone/Mo Wuji.js" ~/Library/Mobile\ Documents/iCloud~dk~simonbs~Scriptable/Documents/`. The script shows up in the app.
+   - **On the iPhone:** in Scriptable, tap **+**, paste the contents of [`iphone/Mo Wuji.js`](iphone/Mo%20Wuji.js), and name the script **Mo Wuji**.
+3. Long-press the home screen, tap **Edit**, then **Add Widget**, and choose **Scriptable**. Pick a size, then tap the new widget and set **Script** to **Mo Wuji**. Lock-screen widgets are added the same way from the lock-screen editor.
+
+**Progress from your Mac.** When the Scriptable folder exists, the Mac widget writes `mo-wuji-progress.json` into it: your daily goal, how many sessions you finished each day, and your totals. What you worked on is never included. The iPhone widget shows today's count and, in the large size, your streak and totals.
+
+**AI quotes on the iPhone.** Run the script in Scriptable and choose **Add AI key**. The key is stored only in the iPhone's Keychain. AI quotes then take turns with the built-in ones, as they do on the Mac.
 
 ## Customize
 

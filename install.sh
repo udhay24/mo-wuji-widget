@@ -28,8 +28,12 @@ cat > "$PLIST" <<EOF
   <array>
     <string>$PY</string>
     <string>$DIR/widget.py</string>
+    <!-- after a crash macOS would otherwise wait on a hidden "reopen windows?" alert -->
+    <string>-ApplePersistenceIgnoreState</string>
+    <string>YES</string>
   </array>
   <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
   <key>StandardErrorPath</key><string>$LOG</string>
 </dict>
 </plist>

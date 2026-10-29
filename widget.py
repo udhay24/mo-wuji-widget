@@ -375,6 +375,8 @@ class QuoteWidget:
             self.draw_button(c)
         for label in (self.quote, self.chronicle_text):
             label.configure(wraplength=self.px(TEXT_W - 4))   # italic overhang stays inside the column
+        self.theme.configure(wraplength=self.px(TEXT_W) - sum(b.winfo_reqwidth() for b in self.quote_buttons)
+                             - 8 - self.px(SM))
         for widget, opts in self.spaced:
             if widget.winfo_manager() == "pack":
                 widget.pack_configure(**self.scaled(opts))
@@ -487,10 +489,13 @@ class QuoteWidget:
         self.spaced_pack(self.quote, fill="x", pady=(SM, MD))
         bottom = tk.Frame(v, bg=BG)
         bottom.pack(fill="x", side="bottom")
-        self.theme = self.text(bottom, style="quote", anchor="w")
+        # buttons are packed first so a long theme wraps beside them instead of squeezing them
+        self.quote_buttons = (self.button(bottom, "Cultivate", self.open_cultivation, kind="primary"),
+                              self.button(bottom, "Next", self.next_quote))
+        self.quote_buttons[0].pack(side="right")
+        self.quote_buttons[1].pack(side="right", padx=(0, 8))
+        self.theme = self.text(bottom, style="quote", anchor="w", justify="left")
         self.theme.pack(side="left")
-        self.button(bottom, "Cultivate", self.open_cultivation, kind="primary").pack(side="right")
-        self.button(bottom, "Next", self.next_quote).pack(side="right", padx=(0, 8))
 
     def build_setup_view(self, v: tk.Frame) -> None:
         self.text(v, "Closed-door cultivation", fg=FG, size=16, style="quote", anchor="w").pack(fill="x", pady=(6, 6))

@@ -9,8 +9,8 @@ A macOS desktop widget that keeps a motivational quote on your desktop, voiced i
 ## Features
 
 - **It lives on the desktop.** The card sits above the wallpaper and below every app window, the same way macOS desktop widgets do. It's frosted glass, so your wallpaper shows through, and it appears on all Spaces.
-- **There are 120 quotes.** A new one appears every 30 minutes, or when you click **NEXT ›**. Each quote is tagged calm, battle or god-like.
-- **There are 16 painted, animated scenes in three moods.** The scene follows the quote's mood and the time of day: dawn, day, dusk or night. Paintings drift slowly, with embers, petals, snow, rain, fireflies and lightning animated on top.
+- **There are 160 quotes.** A new one appears every 30 minutes, or when you click **Next**. Each quote is tagged calm, battle or god-like.
+- **There are 16 painted, animated scenes in three moods.** The scene follows the quote's mood and the time of day: dawn, day, dusk or night. Each painting is shown whole, with embers, petals, snow, rain, fireflies and lightning animated on top.
   - **Calm:** dawn meditation, moonlit bamboo, wanderer in the mist, blossom meditation, snow peak stillness, lotus lake, facing the heavens.
   - **Battle:** bamboo duel, ten thousand swords, blood moon, burning battlefield, facing the beast, lightning tribulation.
   - **God-like:** ascension, lord of the stars, heaven's gate.
@@ -23,7 +23,7 @@ A macOS desktop widget that keeps a motivational quote on your desktop, voiced i
   Without a key, or offline, everything falls back to the built-in text.
 - **It's light on the CPU.** It renders about 5 frames a second through Core Animation, at about 4% of one core while visible. It stops rendering while app windows cover it, and then uses about 0.3%.
 - **It's on your iPhone too.** A [Scriptable](https://scriptable.app) widget shows the same quotes and paintings on the home screen and lock screen, along with your cultivation progress. See [On your iPhone](#on-your-iphone).
-- **It stays out of the way.** It has no Dock icon, it starts at login, and only one copy can run at a time. You can drag it anywhere, and it remembers where you put it.
+- **It stays out of the way.** It has no Dock icon, it starts at login, and only one copy can run at a time. You can drag and resize it, and it remembers both. If it ever crashes, it restarts itself.
 
 ![All 16 scenes](docs/scenes.png)
 
@@ -64,9 +64,9 @@ Then restart the widget. Text uses NVIDIA's free `nvidia/nemotron-3.5-super-vl:f
 
 | Action | How |
 |---|---|
-| Next quote and scene | Click **NEXT ›** |
-| Start a focus session | Click **CULTIVATE** or the "2 of 4 today" counter. Choose a length and a daily goal, type an intention if you like, then click **BEGIN ›** or press Return. |
-| Stop a session early | Click **END EARLY**, then **END**. A session ended early isn't counted. |
+| Next quote and scene | Click **Next** |
+| Start a focus session | Click **Cultivate** or the "2 of 4 today" counter. Choose a length and a daily goal, type an intention if you like, then click **Begin** or press Return. |
+| Stop a session early | Click **End session**, then **End**. A session ended early isn't counted. |
 | Move the card | Drag it from anywhere on the card |
 | Resize the card | Drag the grip in the bottom-right corner. It scales from 80% to 180%, and the size is remembered. |
 | Close it | Click **×** |
@@ -109,10 +109,11 @@ The widget is plain Tkinter plus Pillow. Everything native goes through `ctypes`
 - **Desktop level:** the window's `NSWindow` level is set just above the desktop icons. Its collection behaviour makes it appear on all Spaces and stay stationary in Mission Control.
 - **Glass:** an `NSVisualEffectView` (the dark HUD material, blending behind the window) is placed underneath Tk's transparent content view.
 - **Pausing when covered:** `NSWindow.occlusionState` is checked before each frame, and nothing is drawn while the card can't be seen.
-- **Clicks and dragging:** while another app is active, macOS drops most clicks on a desktop-level window, though hover events still arrive. So while the pointer is over the card, the widget reads the mouse button itself (`CGEventSourceButtonState`) and works out which control is under the pointer. Drags follow the pointer the same way.
+- **Clicks and dragging:** while another app is active, macOS drops most clicks on a desktop-level window, though hover events still arrive. So while the pointer is over the card, the widget reads the mouse button itself (`CGEventSourceButtonState`) and works out which control is under the pointer. Drags follow the pointer the same way, and the card moves through Tk, because moving the `NSWindow` from `ctypes` can run Tk handlers in the middle of the call and crash Python.
+- **Scene drawing:** Tk Aqua is slow at updating a changing image, so each frame goes to a `CALayer` placed over the scene's slot in the layout.
 - **Typing:** a desktop-level window only takes keyboard input once the app is active. So clicking the intention box activates the app and makes the card the key window.
 - **AI calls** run on a worker thread, and their results are handed back to Tk on the main thread, so the card never freezes. The next quote is fetched ahead of time, so it's ready the moment it's needed.
-- **Font:** [Lora](https://fonts.google.com/specimen/Lora) (SemiBold and Medium Italic) is bundled in `fonts/`. It's registered for this process only with `CTFontManagerRegisterFontsForURL`, so nothing gets installed on your system.
+- **Font:** [Lora](https://fonts.google.com/specimen/Lora) (SemiBold, Medium and Medium Italic) is bundled in `fonts/`. It's registered for this process only with `CTFontManagerRegisterFontsForURL`, so nothing gets installed on your system.
 
 ## Credits and disclaimer
 
